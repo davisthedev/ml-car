@@ -1,6 +1,8 @@
 import _ from 'lodash';
 import Controls from './controls';
+import NeuralNetwork from './network';
 import Sensor from './sensor';
+import { polysIntersect } from './utils';
 
 export default class Car {
     x: number;
@@ -10,26 +12,68 @@ export default class Car {
     controls: any;
     speed = 0;
     acceleration = 0.2;
-    maxSpeed = 3;
+    maxSpeed: number;
     friction = 0.05;
     angle = 0;
-    sensor: Sensor;
+    sensor?: Sensor;
     polygon: any;
+    damaged = false;
+    brain?: NeuralNetwork;
+    useBrain: boolean;
 
-    constructor(x: number, y: number, width: number, height: number) {
+    constructor(x: number, y: number, width: number, height: number,
+        controlType: string, maxSpeed = 3) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.maxSpeed = maxSpeed;
 
-        this.sensor = new Sensor(this);
-        this.controls = new Controls();
+        this.useBrain = controlType == "AI";
+
+        if (controlType != "DUMMY") {
+            this.sensor = new Sensor(this);
+            this.brain = new NeuralNetwork(
+                [this.sensor.rayCount, 6, 4]
+            );
+        }
+        this.controls = new Controls(controlType);
     }
 
-    update(roadBorders: any) {
-        this.#move();
-        this.polygon = this.#createPolygon();
-        this.sensor.update(roadBorders);
+    update(roadBorders: any, traffic: Array<any>) {
+        if (!this.damaged) {
+            this.#move();
+            this.polygon = this.#createPolygon();
+            this.damaged = this.#assessDamage(roadBorders, traffic);
+        }
+        if (this.sensor && this.brain) {
+            this.sensor.update(roadBorders, traffic);
+            const offsets = this.sensor.readings.map(
+                s => s == null ? 0 : 1 - s.offset
+            );
+            const outputs = NeuralNetwork.feedForward(offsets, this.brain);
+
+            if (this.useBrain) {
+                this.controls.forward = outputs[0];
+                this.controls.left = outputs[1];
+                this.controls.right = outputs[2];
+                this.controls.reverse = outputs[3];
+            }
+        }
+    }
+
+    #assessDamage(roadBorders: any, traffic: Array<any>) {
+        for (let i = 0; i < roadBorders.length; i++) {
+            if (polysIntersect(this.polygon, roadBorders[i])) {
+                return true;
+            }
+        }
+        for (let i = 0; i < traffic.length; i++) {
+            if (polysIntersect(this.polygon, traffic[i].polygon)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     #createPolygon() {
@@ -95,13 +139,20 @@ export default class Car {
 
     }
 
-    draw(ctx: any) {
+    draw(ctx: any, color: string) {
+        if (this.damaged) {
+            ctx.fillStyle = "gray";
+        } else {
+            ctx.fillStyle = color;
+        }
         ctx.beginPath();
         ctx.moveTo(this.polygon[0].x, this.polygon[0].y);
         for (let i = 1; i < this.polygon.length; i++) {
             ctx.lineTo(this.polygon[i].x, this.polygon[i].y);
         }
         ctx.fill();
-        this.sensor.draw(ctx);
+        if (this.sensor) {
+            this.sensor.draw(ctx);
+        }
     }
 }
