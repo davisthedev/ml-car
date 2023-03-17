@@ -139,7 +139,7 @@ export default class Car {
 
     }
 
-    draw(ctx: any, color: string) {
+    draw(ctx: any, color: string, drawSensor = false) {
         if (this.damaged) {
             ctx.fillStyle = "gray";
         } else {
@@ -151,7 +151,7 @@ export default class Car {
             ctx.lineTo(this.polygon[i].x, this.polygon[i].y);
         }
         ctx.fill();
-        if (this.sensor) {
+        if (this.sensor && drawSensor) {
             this.sensor.draw(ctx);
         }
     }
