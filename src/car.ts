@@ -141,7 +141,8 @@ export default class Car {
 
     draw(ctx: any, color: string, drawSensor = false) {
         if (this.damaged) {
-            ctx.fillStyle = "gray";
+            return;
+            // ctx.fillStyle = "gray";
         } else {
             ctx.fillStyle = color;
         }

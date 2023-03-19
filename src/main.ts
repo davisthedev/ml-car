@@ -1,5 +1,6 @@
 import _ from 'lodash'
 import Car from './car';
+import NeuralNetwork from './network';
 import Road from './road';
 import Visualizer from './visualizer';
 
@@ -20,21 +21,50 @@ const cars = generateCars(N);
 let bestCar = cars[0];
 
 if (localStorage.getItem('bestBrain')) {
-    bestCar.brain = JSON.parse(
-        localStorage.getItem('bestBrain')
-    );
+    for (let i = 0; i < cars.length; i++) {
+        if (i < 1) {
+            cars[i].brain = JSON.parse(
+                // @ts-ignore
+                localStorage.getItem('bestBrain')
+            );
+        } else if (i <= 50) {
+            // @ts-ignore
+            NeuralNetwork.mutate(cars[i].brain, 0.0015);
+        } else if (i > 50) {
+            // @ts-ignore
+            NeuralNetwork.mutate(cars[i].brain, 0.01);
+        }
+    }
 }
+
+function getRandomLane(min: number, max: number) {
+    min = Math.ceil(min);
+    max = Math.ceil(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 
 const traffic = [
     new Car(road.getLaneCenter(1), -100, 30, 50, "DUMMY", 2),
-    new Car(road.getLaneCenter(0), -300, 30, 50, "DUMMY", 2),
-    new Car(road.getLaneCenter(2), -100, 30, 50, "DUMMY", 2)
 ]
 
+const totalTraffic = 100;
+let trafficY = 100;
+for (let i = 0; i <= totalTraffic; i++) {
+    trafficY += 200;
+    traffic.push(
+        new Car(road.getLaneCenter(getRandomLane(0, 3)), -trafficY, 30, 50, "DUMMY", 2)
+    );
+    traffic.push(
+        new Car(road.getLaneCenter(getRandomLane(0, 3)), -trafficY, 30, 50, "DUMMY", 2)
+    );
+}
+
+// @ts-ignore
 animate();
 
-document.getElementById("save")?.addEventListener("click", (e: Event) => save());
-document.getElementById("discard")?.addEventListener("click", (e: Event) => discard());
+document.getElementById("save")?.addEventListener("click", () => save());
+document.getElementById("discard")?.addEventListener("click", () => discard());
 
 function save() {
     console.log('saved');
@@ -68,6 +98,7 @@ function animate(time: any) {
         cars[i].update(road.borders, traffic);
     }
 
+    // @ts-ignore
     bestCar = cars.find(
         c => c.y == Math.min(
             ...cars.map(c => c.y)

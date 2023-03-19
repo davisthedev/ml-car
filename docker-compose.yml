@@ -1,0 +1,10 @@
+---
+services:
+  ml-car:
+    image: nginx:alpine
+    container_name: ml-car
+    volumes:
+      - ./dist:/usr/share/nginx/html
+    ports:
+      - 5173:80
+    restart: unless-stopped
